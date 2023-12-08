@@ -9,7 +9,7 @@ website:
       - href: index.qmd
         text: Home
       - about.qmd
-      - href: SK-PM566-FinalProject-Final-Report.pdf
+      - href: Final Project Report.html
         text: Download the Report
       
 

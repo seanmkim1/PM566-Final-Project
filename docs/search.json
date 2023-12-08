@@ -42,17 +42,17 @@
     "text": "Conclusions:\nThe top ten counties were taken in terms of adjusted rates of preventable hospitalization and provider shortage scores. Notable counties that appeared in the top 10 on both lists include Shasta, Colusa, Yuba, and Sutter. These four counties may represent target areas that experience both the highest rates of preventable hospitalization and the greatest primary care provider shortages.\nThese datasets had some noteworthy limitations. The Primary Care provider shortage dataset only included data from the year 2020, making it difficult to draw conclusions about any time-course. It would be interesting to see how the changes in primary care provider availability associate with changes in preventable hospitalizations. The Preventable hospitalizations dataset was also limited in its scope. More granular analysis of individual diagnoses by county was difficult due to low rates of hospitalization in some counties. For example, there were 0 hospitalizations due to asthma in young adults in several of the smaller counties in 2020.\nPreventable hospitalizations indicate areas of improvement in public health, particularly in access to care. These data show a positive association between shortage of primary care providers and preventable hospitalization rates. Greater investment in primary care, particularly in areas of shortage, can potentially improve these rates and citizens’ overall health.\nLinks to Datasets and Data Dictionaries:\nPrimary Care Shortage Areas:\n\nhttps://data.chhs.ca.gov/dataset/primary-care-shortage-areas-in-california/resource/0ba7c904-2302-400a-ba27-b8e8e5c1ab4a\n\nPreventable Hospitalizations:\n\nhttps://data.chhs.ca.gov/dataset/rates-of-preventable-hospitalizations-for-selected-medical-conditions-by-county/resource/1f699c45-f52f-408e-a8f2-87e537aea82d?inner_span=True"
   },
   {
-    "objectID": "about.html",
-    "href": "about.html",
-    "title": "About",
-    "section": "",
-    "text": "About this site!\n\n1 + 1\n\n[1] 2"
-  },
-  {
     "objectID": "index.html",
     "href": "index.html",
     "title": "temp",
     "section": "",
     "text": "Update!!\nTo learn more about Quarto websites visit https://quarto.org/docs/websites.\n\n1 + 1\n\n[1] 2\n\n2 + 2\n\n[1] 4"
+  },
+  {
+    "objectID": "about.html",
+    "href": "about.html",
+    "title": "About",
+    "section": "",
+    "text": "About this site!\n\n1 + 1\n\n[1] 2"
   }
 ]

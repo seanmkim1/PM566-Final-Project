@@ -18,6 +18,7 @@ library(ggplot2)
 library(data.table)
 library(readxl)
 library(knitr)
+library(plotly)
 ```
 
 ```{r include=FALSE}
@@ -150,12 +151,13 @@ Under the primary care provider shortage set, a histogram was made to illustrate
 #| label: fig-hist-providerScore
 #| fig-cap: "distribution of scores of providers by county. 0 is 0-1000 persons per provider; 1 is 1000-1500; 2 is 1500-2000; 3 is 2000-2500; 4 is 2500-3000; 5 is >3000."
 
-ggplot(pcp, aes(x = Average_Score_Provider)) +
+histp1 <- ggplot(pcp, aes(x = Average_Score_Provider)) +
   geom_histogram(binwidth = 1.0, fill = "skyblue", color = "black", alpha = 0.7) +
   labs(title = "Distribution of Provider Scores by County",
        x = "Provider Score",
        y = "Frequency") +
   theme_minimal()
+ggplotly(histp1)
 ```
 
 ```{r echo=FALSE}
@@ -167,10 +169,6 @@ kable(data.frame(Quartile = c("Min", "Q1", "Median", "Q3", "Max"),
                  Value = QuartilesCAProvider),
       format = "html",
       caption = "Quartiles of Average Provider Ratio in California")
-```
-
-```{r include=FALSE}
-library(plotly)
 ```
 
 ```{r echo=FALSE}
@@ -206,7 +204,7 @@ Preventable hospitalization rates were also examined by groups of diagnoses, agg
 #| label: fig-rates-by-providerRatio
 #| fig-cap: "Plots of preventable hospitalization rates vs population:provider ratio separated by diagnosis."
 
-ggplot(HospPcp, aes(x = Average_ProviderRatio, y = RiskAdjRate_ICD10)) +
+scatterdiag <- ggplot(HospPcp, aes(x = Average_ProviderRatio, y = RiskAdjRate_ICD10)) +
   geom_point(size = 0.5) +
   geom_smooth(method = "lm", se = FALSE, color = "blue") +
   facet_wrap(~PQIDescription, scales = "free_y", ncol = 5)+
@@ -217,14 +215,15 @@ ggplot(HospPcp, aes(x = Average_ProviderRatio, y = RiskAdjRate_ICD10)) +
         axis.title = element_text(size = 6), 
         axis.text = element_text(size = 6),  
         strip.text = element_text(size = 6),  
-        strip.background = element_blank())    
+        strip.background = element_blank()) 
+ggplotly(scatterdiag)
 ```
 
 ```{r echo=FALSE}
 #| label: fig-Rate-vs-score
 #| fig-cap: "Rate of preventable hospitalizatoin vs Provider shortage score based on composite measures. Diabetes composite is made up of short term complications, long term complications, lower extremity amputation due to diabetes, and uncontrolled diabetes. Chronic composite is made up of diabetes composite measures, COPD and Asthma in older and younger adults, hypertension, and heart failure admissions rates. Acute composite is made up of community acquired pneumonia and urinary tract infection admissions rates."
 
-ggplot(HospPcpComp, aes(x = Average_Score_Provider, y = RiskAdjRate_ICD10)) +
+scattercomp <- ggplot(HospPcpComp, aes(x = Average_Score_Provider, y = RiskAdjRate_ICD10)) +
   geom_point(size = 0.5) +
   geom_smooth(method = "lm", se = FALSE, color = "blue") +
   facet_wrap(~PQIDescription, scales = "free_y", ncol = 2)+
@@ -236,6 +235,7 @@ ggplot(HospPcpComp, aes(x = Average_Score_Provider, y = RiskAdjRate_ICD10)) +
         axis.text = element_text(size = 6),   
         strip.text = element_text(size = 6), 
         strip.background = element_blank())
+ggplotly(scattercomp)
 ```
 
 Summary Statistics:
