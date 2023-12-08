@@ -1,12 +1,184 @@
 ---
-title: "temp"
+title: "HomePage"
+author: "Sean Kim"
+format:
+  html:
+    embed-resources: true
 ---
 
-Update!!
+## PM566 Final Project Description
 
-To learn more about Quarto websites visit <https://quarto.org/docs/websites>.
+High quality outpatient preventative care, or Primary care, is a critical aspect of a successful healthcare system. Chronic conditions, minor incidents, and preventable acute conditions can all be managed by adequate primary care. When primary care is difficult to access, the mode of healthcare people often turn to is the emergency room and hospitals. When patients end up hospitalized for conditions that could have been prevented or managed with appropriate access to outpatient primary care, these hospitalizations are considered "preventable". The California department of Health and Human Services (CalHHS) tracks both preventable hospitalizations and primary care provider shortage data. Two datasets were analyzed from the CalHHS website: Preventable Hospitalizations and Primary Care Provider Shortage in order to answer the question: is a shortage of primary care providers associated with increased rates of preventable hospitalization? The final report is available for download from this website (see navigation bar). Included in this homepage are plots used in the final report and brief descriptions.
 
-```{r}
-1 + 1
-2 + 2
+```{r include=FALSE}
+
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(data.table)
+library(readxl)
+library(knitr)
+library(plotly)
+```
+
+```{r include=FALSE}
+
+if (!file.exists("ca-hcai-preventablehospitalizations-county")) 
+  download.file( 
+    url = "https://data.chhs.ca.gov/dataset/f2b33545-db0a-4a53-a611-41de532e7c53/resource/7c7aed93-3643-43b8-92fc-324bf8fc13f2/download/ca-hcai-preventablehospitalizations-county.csv", 
+    destfile = "ca-hcai-preventablehospitalizations-county", 
+    method = "libcurl", 
+    timeout = 1000 )
+
+PrevHosp <- read_csv("ca-hcai-preventablehospitalizations-county")
+
+if (!file.exists("pcsa")) 
+  download.file( 
+    url = "https://data.chhs.ca.gov/dataset/061494a3-e8c7-4615-a22f-b2851d44eb09/resource/0ba7c904-2302-400a-ba27-b8e8e5c1ab4a/download/pcsa.csv", 
+    destfile = "pcsa", 
+    method = "libcurl", 
+    timeout = 1000 )
+
+
+PrimCareShort <- fread("pcsa") 
+```
+
+```{r include=FALSE}
+
+hosp20 <- PrevHosp %>% 
+  select(c(Year, County, PQIDescription, Count_ICD10, Population_ICD10, RiskAdjRate_ICD10)) %>%
+  filter(Year == 2020) %>% 
+  filter(County != "STATEWIDE") %>% 
+  filter(!PQIDescription %in% c("Overall Composite", "Acute Composite", "Chronic Composite", "Diabetes Composite")) %>% 
+  mutate(Count_ICD10 = as.numeric(gsub(",", "", Count_ICD10))) %>% 
+  mutate(Population_ICD10 = as.numeric(gsub(",", "", Population_ICD10))) %>% 
+  rename(county = County)
+
+hospcomposite <- PrevHosp %>% 
+  select(c(Year, County, PQIDescription, Count_ICD10, Population_ICD10, RiskAdjRate_ICD10)) %>%
+  filter(Year == 2020) %>% 
+  filter(County != "STATEWIDE") %>% 
+  filter(PQIDescription %in% c("Overall Composite", "Acute Composite", "Chronic Composite", "Diabetes Composite")) %>% 
+  mutate(Count_ICD10 = as.numeric(gsub(",", "", Count_ICD10))) %>% 
+  mutate(Population_ICD10 = as.numeric(gsub(",", "", Population_ICD10))) %>% 
+  rename(county = County)
+
+pcp <- PrimCareShort %>% 
+  select(c(MSSA_COUNTY, Total_Population, EST_Providers, Provider_Ratio, Score_Provider_Ratio, Pop_100FPL, PCT_100FPL, Score_Poverty, Score_Total)) %>% 
+  filter(!is.na(MSSA_COUNTY)) %>% 
+  rename(county = MSSA_COUNTY)
+
+pcp <- pcp %>% 
+  group_by(county) %>% 
+  summarize(Population = mean(Total_Population, na.rm = TRUE), 
+            Providers = mean(EST_Providers, na.rm = TRUE), 
+            Average_ProviderRatio = mean(Provider_Ratio, na.rm = TRUE), 
+            Average_Score_Provider = mean(Score_Provider_Ratio, na.rm = TRUE), 
+            Average_Pct_100FPL = mean(PCT_100FPL, na.rm = TRUE), 
+            Average_Score_Poverty = mean(Score_Poverty, na.rm = TRUE), 
+            Average_Score_Total = mean(Score_Total, na.rm = TRUE), 
+            )
+
+HospPcp <- hosp20 %>% 
+  full_join(pcp, by = "county")
+
+HospPcpComp <- hospcomposite %>% 
+  full_join(pcp, by = "county")
+
+HospPcp$Average_ProviderRatio[is.na(HospPcp$Average_ProviderRatio)] <- 19000
+
+```
+
+```{r echo=FALSE}
+#| label: fig-rates-by-diagnosis
+#| fig-cap: "Boxplots showing the distribution of preventable hospitalization rates adjusted for sex, age, and socioeconomic status and displayed in separate facets by diagnosis."
+
+ggplot(HospPcp, aes(x = 1, y = RiskAdjRate_ICD10)) +
+  geom_boxplot() +
+  labs(title = "Distribution of Risk Adjusted Hospitalization Rates by Diagnosis (per 100,000)",
+       x = "Diagnosis",
+       y = "Risk Adjusted Rate (per 100,000)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +  
+  facet_wrap(~PQIDescription, scales = "free_y", ncol = 5)+
+  theme(plot.title = element_text(size = 8),  
+        axis.title = element_text(size = 6),  
+        axis.text = element_text(size = 6),   
+        strip.text = element_text(size = 6), 
+        strip.background = element_blank()) 
+
+```
+
+```{r echo=FALSE}
+#| label: fig-hist-providerScore
+#| fig-cap: "distribution of scores of providers by county. 0 is 0-1000 persons per provider; 1 is 1000-1500; 2 is 1500-2000; 3 is 2000-2500; 4 is 2500-3000; 5 is >3000."
+
+histp1 <- ggplot(pcp, aes(x = Average_Score_Provider)) +
+  geom_histogram(binwidth = 1.0, fill = "skyblue", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of Provider Scores by County",
+       x = "Provider Score",
+       y = "Frequency") +
+  theme_minimal()
+ggplotly(histp1)
+
+```
+
+```{r echo=FALSE}
+#| label: fig-Interactive-Hospitalizations-by-Shortage
+#| fig-cap: "Risk adjusted rate per 100k of overall preventable hospitalizations (adjusted for age, sex, and socioeconomic status by county), versus average county scores for provider shortage scores. Interactive plot, comparison available."
+plotOverall <- HospPcpComp %>% 
+  filter(PQIDescription == "Overall Composite") %>% 
+  plot_ly(x = ~Average_Score_Provider, y = ~RiskAdjRate_ICD10, 
+          type = 'scatter', 
+          mode = 'markers', 
+          color = ~county, 
+          hoverinfo = 'text', 
+          text = ~paste( paste(county, ":", sep=""),
+                         paste("Preventable hospitalizations per 100k: ", RiskAdjRate_ICD10, sep="") ,
+                         paste(" Provider Shortage Score: ", Average_Score_Provider, sep=""),
+                         sep = "<br>")) %>%  
+  layout(title = "Rate of Preventable Hospitalizations by Provider Shortage Scores",
+        yaxis = list(title = "Overall Preventable Hospitalization (per 100k)"), 
+         xaxis = list(title = "Provider Shortage Scores"),
+         hovermode = "compare")
+plotOverall
+```
+
+```{r echo=FALSE}
+#| label: fig-rates-by-providerRatio
+#| fig-cap: "Plots of preventable hospitalization rates vs population:provider ratio separated by diagnosis."
+
+scatterdiag <- ggplot(HospPcp, aes(x = Average_ProviderRatio, y = RiskAdjRate_ICD10)) +
+  geom_point(size = 0.5) +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  facet_wrap(~PQIDescription, scales = "free_y", ncol = 5)+
+  labs(title = "Risk-Adjusted Rate vs Population:Provider Ratio",
+       x = "Population:Provider Ratio",
+       y = "Risk-Adjusted Rate") +
+  theme(plot.title = element_text(size = 6), 
+        axis.title = element_text(size = 6), 
+        axis.text = element_text(size = 6),  
+        strip.text = element_text(size = 6),  
+        strip.background = element_blank()) 
+ggplotly(scatterdiag)
+
+```
+
+```{r echo=FALSE}
+#| label: fig-Rate-vs-score
+#| fig-cap: "Rate of preventable hospitalizatoin vs Provider shortage score based on composite measures. Diabetes composite is made up of short term complications, long term complications, lower extremity amputation due to diabetes, and uncontrolled diabetes. Chronic composite is made up of diabetes composite measures, COPD and Asthma in older and younger adults, hypertension, and heart failure admissions rates. Acute composite is made up of community acquired pneumonia and urinary tract infection admissions rates."
+
+scattercomp <- ggplot(HospPcpComp, aes(x = Average_Score_Provider, y = RiskAdjRate_ICD10)) +
+  geom_point(size = 0.5) +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  facet_wrap(~PQIDescription, scales = "free_y", ncol = 2)+
+  labs(title = "Scatter Plot of Risk-Adjusted Rate vs Provider Shortage Score",
+       x = "Provider Shortage Score",
+       y = "Risk-Adjusted Rate") +
+  theme(plot.title = element_text(size = 6),  
+        axis.title = element_text(size = 6),
+        axis.text = element_text(size = 6),   
+        strip.text = element_text(size = 6), 
+        strip.background = element_blank())
+ggplotly(scattercomp)
 ```
