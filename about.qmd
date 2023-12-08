@@ -22,5 +22,5 @@ I used two datasets for this project, both from the California department of Hea
 
 -   [Preventable Hospitalizations](https://data.chhs.ca.gov/dataset/rates-of-preventable-hospitalizations-for-selected-medical-conditions-by-county/resource/1f699c45-f52f-408e-a8f2-87e537aea82d?inner_span=True)
 
-Packages used: \
+Packages used:\
 Tidyverse, Dplyr, ggplot2, plotly, knitr
