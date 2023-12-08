@@ -9,6 +9,7 @@ website:
       - href: index.qmd
         text: Home
       - about.qmd
+        text: About this site
       - href: Final Project Report.html
         text: Download the Report
       
