@@ -182,3 +182,5 @@ scattercomp <- ggplot(HospPcpComp, aes(x = Average_Score_Provider, y = RiskAdjRa
         strip.background = element_blank())
 ggplotly(scattercomp)
 ```
+
+The above data suggest there is indeed an association between primary care provider shortage and preventable hospitalization. Although the datasets had significant limitations, there is a positive correlation between provider shortage and preventable hospitalization that holds across every investigated diagnosis.
