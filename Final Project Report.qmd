@@ -1,0 +1,289 @@
+---
+title: "Final Report"
+author: "Sean Kim"
+format:
+  html:
+    embed-resources: true
+---
+
+## **Introduction:**
+
+Access to high quality healthcare is an integral aspect of public health. Ensuring equitable access to such care has been a mission of many public health policies over the years. One measure of access to healthcare is preventable hospitalizations. Individuals with chronic conditions such as diabetes, heart disease, asthma, and chronic obstructive pulmonary disease (COPD) depend on outpatient primary care to keep their conditions under control. With poor access to primary care, these individuals may be forced to travel far for their necessary care or simply deal with their condition until they experience an exacerbation and require hospitalization. These hospitalizations are considered preventable with proper access to appropriate outpatient care. The California Health and Human Services department records data tracking preventable hospitalization rates for ten of the most common conditions managed in the outpatient setting. In addition to preventable hospitalization, CalHHS has also collected data on primary care shortage metrics on a county-, city-, and census area- basis. With these available data, I formulated the following question: Is a shortage of primary care providers in an area associated with increased preventable hospitalizations? I hypothesize that an increased population : primary care provider ratio, indicative of increasing primary care provider shortage will be associated with a higher rate of preventable hospitalizations.
+
+```{r include=FALSE}
+
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(data.table)
+library(readxl)
+library(knitr)
+```
+
+```{r include=FALSE}
+
+if (!file.exists("ca-hcai-preventablehospitalizations-county")) 
+  download.file( 
+    url = "https://data.chhs.ca.gov/dataset/f2b33545-db0a-4a53-a611-41de532e7c53/resource/7c7aed93-3643-43b8-92fc-324bf8fc13f2/download/ca-hcai-preventablehospitalizations-county.csv", 
+    destfile = "ca-hcai-preventablehospitalizations-county", 
+    method = "libcurl", 
+    timeout = 1000 )
+
+
+PrevHosp <- read_csv("ca-hcai-preventablehospitalizations-county")
+```
+
+```{r include=FALSE}
+
+if (!file.exists("pcsa")) 
+  download.file( 
+    url = "https://data.chhs.ca.gov/dataset/061494a3-e8c7-4615-a22f-b2851d44eb09/resource/0ba7c904-2302-400a-ba27-b8e8e5c1ab4a/download/pcsa.csv", 
+    destfile = "pcsa", 
+    method = "libcurl", 
+    timeout = 1000 )
+
+
+PrimCareShort <- fread("pcsa") 
+
+```
+
+## 
+
+## **Methods:**
+
+Two data sets were selected from the California Health and Human Services (CalHHS) website: "Rates of Preventable hospitalizations for selected conditions" and "Primary care shortage areas". These data sets are open access and downloaded in .csv or .xlsx format and then imported to RStudio for processing. Both datasets were inspected using the "summary", "head", "tail", "str" and "dim" functions for missing or implausible values. The data sets were then combined based on the variable "county". Amador and Calaveras county had observations for "Asthma in younger adults" in which the observations had been replaced by "NA", as the cell size was too small. This is common practice in many studies where such small number of observed cases (less than 5 for example) are removed to protect anonymity of subjects or patients. Considering this, "NA" cells were imputed with 1 arbitrarily. The packages Tidyverse and Dplyr were used for data cleaning. Within each dataset, key variables were identified for analysis.
+
+In the Preventable hospitalizations dataset, PQIDescription, count_ICD10, Population_ICD10, RiskAdjRate_ICD10 were identified. PQI is short for Prevention Quality Indicators, used by the Agency for Healthcare Research and Quality to describe conditions or hospitalizaitons that could be prevented with high quality outpatient care. ICD10 codes represent specific medical diagnoses. Risk-Adjusted-Rates were calculated in this dataset by adjusting the rates accounting for differences in sex, age, and socioeconomic status of the different counties. The dataset also included composite measurements that combined observations for diabetes, acute preventable hospitalizations, chronic preventable hospitalizations, and overall preventable hospitalizations. Count_ICD10 and Population_ICD10 were classified as "character" and needed to be converted to "integer" for analysis. County totals were calculated by taking the mean of observations by ICD 10 code.
+
+For the Primary care shortages dataset, the variables total population, total primary care provider count, population:provider ratio and the ratio score were selected and summarized by county. One county, Alpine, had 0 reported primary care providers. The population:provider ratio was then reported as "NA". This was replaced with 19,000 to match the maximum observed population:provider ratio in the dataset. Primary care provider shortage scores were categorized on a scale of 0-5, with 0 representing minimal shortage of primary care providers and 5 representing the greatest shortage of primary care providers. Specifically, the population:provider ratio for 0 is 0-1000; population:provider ratio for 1 is 1000-1500; 2 is 1500-2000; 3 is 2000-2500; 4 is 2500-3000; 5 is \>3000. This Primary care provider shortage score was identified as a key variable for analysis, given the scale (1:5 was more manageable than 700 to 19,000 for population:provider ratios).
+
+In the Exploratory Data analysis "ggplot2" and "kable" were used for data exploration and visualization. Interactive plots were made using the package "Plotly". Key variables were compared with known population data of each county. It was noted that the preventable hospitalization set included a "statewide" observation, which was removed from analysis. In order to visualize the distribution of key variables, box plots and histograms were made of both sets.
+
+```{r include=FALSE}
+
+hosp20 <- PrevHosp %>% 
+  select(c(Year, County, PQIDescription, Count_ICD10, Population_ICD10, RiskAdjRate_ICD10)) %>%
+  filter(Year == 2020) %>% 
+  filter(County != "STATEWIDE") %>% 
+  filter(!PQIDescription %in% c("Overall Composite", "Acute Composite", "Chronic Composite", "Diabetes Composite")) %>% 
+  mutate(Count_ICD10 = as.numeric(gsub(",", "", Count_ICD10))) %>% 
+  mutate(Population_ICD10 = as.numeric(gsub(",", "", Population_ICD10))) %>% 
+  rename(county = County)
+```
+
+```{r include=FALSE}
+hospcomposite <- PrevHosp %>% 
+  select(c(Year, County, PQIDescription, Count_ICD10, Population_ICD10, RiskAdjRate_ICD10)) %>%
+  filter(Year == 2020) %>% 
+  filter(County != "STATEWIDE") %>% 
+  filter(PQIDescription %in% c("Overall Composite", "Acute Composite", "Chronic Composite", "Diabetes Composite")) %>% 
+  mutate(Count_ICD10 = as.numeric(gsub(",", "", Count_ICD10))) %>% 
+  mutate(Population_ICD10 = as.numeric(gsub(",", "", Population_ICD10))) %>% 
+  rename(county = County)
+```
+
+```{r include=FALSE}
+pcp <- PrimCareShort %>% 
+  select(c(MSSA_COUNTY, Total_Population, EST_Providers, Provider_Ratio, Score_Provider_Ratio, Pop_100FPL, PCT_100FPL, Score_Poverty, Score_Total)) %>% 
+  filter(!is.na(MSSA_COUNTY)) %>% 
+  rename(county = MSSA_COUNTY)
+```
+
+```{r include=FALSE}
+pcp <- pcp %>% 
+  group_by(county) %>% 
+  summarize(Population = mean(Total_Population, na.rm = TRUE), 
+            Providers = mean(EST_Providers, na.rm = TRUE), 
+            Average_ProviderRatio = mean(Provider_Ratio, na.rm = TRUE), 
+            Average_Score_Provider = mean(Score_Provider_Ratio, na.rm = TRUE), 
+            Average_Pct_100FPL = mean(PCT_100FPL, na.rm = TRUE), 
+            Average_Score_Poverty = mean(Score_Poverty, na.rm = TRUE), 
+            Average_Score_Total = mean(Score_Total, na.rm = TRUE), 
+            )
+```
+
+```{r include=FALSE}
+HospPcp <- hosp20 %>% 
+  full_join(pcp, by = "county")
+
+HospPcpComp <- hospcomposite %>% 
+  full_join(pcp, by = "county")
+
+HospPcp$Average_ProviderRatio[is.na(HospPcp$Average_ProviderRatio)] <- 19000
+```
+
+```{r include=FALSE}
+score_cutoffs <- PrimCareShort %>%
+  select(Score_Provider_Ratio, Provider_Ratio) %>%
+  distinct() %>%
+  arrange(Score_Provider_Ratio, Provider_Ratio)
+```
+
+0 is 0-1000; 1 is 1000-1500; 2 is 1500-2000; 3 is 2000-2500; 4 is 2500-3000; 5 is \>3000
+
+Within the preventable hospitalizations set, a boxplot of risk-adjusted rates (\@fig-rates-by-diagnosis) was made for each diagnosis (named "PQI Description" in the original dataset). Risk adjusted rates were used because these rates were determined after adjusting for age, sex, and socioeconomic status of counties, giving a better picture of the healthcare system to be compared between counties. These plots indicate a fairly normal distribution, with a few outliers generally at the top end of the rates, representing counties that had particularly high rates of preventable hospitalizations in those diagnoses.
+
+```{r echo=FALSE}
+#| label: fig-rates-by-diagnosis
+#| fig-cap: "Boxplots showing the distribution of preventable hospitalization rates adjusted for sex, age, and socioeconomic status and displayed in separate facets by diagnosis."
+
+ggplot(HospPcp, aes(x = 1, y = RiskAdjRate_ICD10)) +
+  geom_boxplot() +
+  labs(title = "Distribution of Risk Adjusted Hospitalization Rates by Diagnosis (per 100,000)",
+       x = "Diagnosis",
+       y = "Risk Adjusted Rate (per 100,000)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +  
+  facet_wrap(~PQIDescription, scales = "free_y", ncol = 5)+
+  theme(plot.title = element_text(size = 8),  
+        axis.title = element_text(size = 6),  
+        axis.text = element_text(size = 6),   
+        strip.text = element_text(size = 6), 
+        strip.background = element_blank())  
+```
+
+## 
+
+Under the primary care provider shortage set, a histogram was made to illustrate the distribution of provider scores among the different counties -- of which there seems to be a mode of 3, a slight left skew, and close to normal distribution (\@fig-hist-providerScore). County scores were determined by taking the average of the observed provider scores from different census tracts within each county. Higher scores (4 and 5) indicate a more severe shortage of primary care providers. In one county, Alpine, there are no primary care providers. The boxplot for Population:Provider ratios in California counties also had outliers present (\@fig-BoxplotCAProvider), necessitating the use of medians to characterize the ratio most representative of California -- which is about 2100 people per primary care provider.
+
+```{r echo=FALSE}
+#| label: fig-hist-providerScore
+#| fig-cap: "distribution of scores of providers by county. 0 is 0-1000 persons per provider; 1 is 1000-1500; 2 is 1500-2000; 3 is 2000-2500; 4 is 2500-3000; 5 is >3000."
+
+ggplot(pcp, aes(x = Average_Score_Provider)) +
+  geom_histogram(binwidth = 1.0, fill = "skyblue", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of Provider Scores by County",
+       x = "Provider Score",
+       y = "Frequency") +
+  theme_minimal()
+```
+
+```{r echo=FALSE}
+#| label: tbl-quartilesProviderRatio
+#| fig-cap: "Quartiles of Provider Ratio in California"
+
+QuartilesCAProvider <- quantile(pcp$Average_ProviderRatio, probs = seq(0, 1, 0.25), na.rm = TRUE)
+kable(data.frame(Quartile = c("Min", "Q1", "Median", "Q3", "Max"),
+                 Value = QuartilesCAProvider),
+      format = "html",
+      caption = "Quartiles of Average Provider Ratio in California")
+```
+
+```{r include=FALSE}
+library(plotly)
+```
+
+```{r echo=FALSE}
+#| label: fig-Interactive-Hospitalizations-by-Shortage
+#| fig-cap: "Risk adjusted rate per 100k of overall preventable hospitalizations (adjusted for age, sex, and socioeconomic status by county), versus average county scores for provider shortage scores. Interactive plot, comparison available."
+plotOverall <- HospPcpComp %>% 
+  filter(PQIDescription == "Overall Composite") %>% 
+  plot_ly(x = ~Average_Score_Provider, y = ~RiskAdjRate_ICD10, 
+          type = 'scatter', 
+          mode = 'markers', 
+          color = ~county, 
+          hoverinfo = 'text', 
+          text = ~paste( paste(county, ":", sep=""),
+                         paste("Preventable hospitalizations per 100k: ", RiskAdjRate_ICD10, sep="") ,
+                         paste(" Provider Shortage Score: ", Average_Score_Provider, sep=""),
+                         sep = "<br>")) %>%  
+  layout(title = "Rate of Preventable Hospitalizations by Provider Shortage Scores",
+        yaxis = list(title = "Overall Preventable Hospitalization (per 100k)"), 
+         xaxis = list(title = "Provider Shortage Scores"),
+         hovermode = "compare")
+plotOverall
+```
+
+Finishing the exploratory data analysis, the interactive scatter plot (\@fig-Interactive-Hospitalizations-by-Shortage) demonstrates the distribution of overall preventable hospitalizations by county. There is added context of provider shortage scores, with 5 indicating severe primary care provider shortage (greater than 1 provider: 3000 residents). Upon visual inspection, there appears to be positive correlation between severity of provider shortage and overall preventable hospitalizations. Further, more granular analysis examining individual diagnoses is warranted.
+
+## Results:
+
+Risk adjusted rates for preventable hospitalizations were plotted against population -- provider ratios and separated by diagnosis to show a positive correlation between increasing primary care provider shortage and increasing rates of preventable hospitalizations for all diagnoses of interest (\@fig-rates-by-providerRatio). Some diagnoses showed stronger correlations than others, indicating conditions more heavily affected by low access to primary care providers.
+
+Preventable hospitalization rates were also examined by groups of diagnoses, aggregating diabetes complications, acute reasons for hospitalization, exacerbation of chronic conditions, and overall measurements (\@fig-Rate-vs-score). These measures were compared to the provider shortage score, which ranges from 0 -- 5, with increasing scores meaning greater shortage of providers. Comparisons were found to be positively correlated on these composite levels as well.
+
+```{r echo=FALSE}
+#| label: fig-rates-by-providerRatio
+#| fig-cap: "Plots of preventable hospitalization rates vs population:provider ratio separated by diagnosis."
+
+ggplot(HospPcp, aes(x = Average_ProviderRatio, y = RiskAdjRate_ICD10)) +
+  geom_point(size = 0.5) +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  facet_wrap(~PQIDescription, scales = "free_y", ncol = 5)+
+  labs(title = "Risk-Adjusted Rate vs Population:Provider Ratio",
+       x = "Population:Provider Ratio",
+       y = "Risk-Adjusted Rate") +
+  theme(plot.title = element_text(size = 6), 
+        axis.title = element_text(size = 6), 
+        axis.text = element_text(size = 6),  
+        strip.text = element_text(size = 6),  
+        strip.background = element_blank())    
+```
+
+```{r echo=FALSE}
+#| label: fig-Rate-vs-score
+#| fig-cap: "Rate of preventable hospitalizatoin vs Provider shortage score based on composite measures. Diabetes composite is made up of short term complications, long term complications, lower extremity amputation due to diabetes, and uncontrolled diabetes. Chronic composite is made up of diabetes composite measures, COPD and Asthma in older and younger adults, hypertension, and heart failure admissions rates. Acute composite is made up of community acquired pneumonia and urinary tract infection admissions rates."
+
+ggplot(HospPcpComp, aes(x = Average_Score_Provider, y = RiskAdjRate_ICD10)) +
+  geom_point(size = 0.5) +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  facet_wrap(~PQIDescription, scales = "free_y", ncol = 2)+
+  labs(title = "Scatter Plot of Risk-Adjusted Rate vs Provider Shortage Score",
+       x = "Provider Shortage Score",
+       y = "Risk-Adjusted Rate") +
+  theme(plot.title = element_text(size = 6),  
+        axis.title = element_text(size = 6),
+        axis.text = element_text(size = 6),   
+        strip.text = element_text(size = 6), 
+        strip.background = element_blank())
+```
+
+Summary Statistics:
+
+```{r, results='asis', echo=FALSE}
+
+hospoverall <- HospPcpComp %>% 
+  filter(PQIDescription == "Overall Composite")
+
+result_table <- hospoverall %>%
+  group_by(county) %>%
+  summarize(
+    Average_RiskAdjRate = mean(RiskAdjRate_ICD10, na.rm = TRUE),
+    Average_Provider_Score = mean(Average_Score_Provider, na.rm = TRUE)
+  ) %>%
+  arrange(desc(Average_RiskAdjRate)) %>%
+  slice_head(n = 10)
+
+kable(result_table, format = "html", caption = "Counties Ordered by Highest Composite Risk-Adjusted Rates",
+      col.names = c("County", "Adjusted Rate of Preventable Hospitalization", "Provider Shortage Score"))
+
+result_table_score <- hospoverall %>%
+  group_by(county) %>%
+  summarize(
+    Average_RiskAdjRate = mean(RiskAdjRate_ICD10, na.rm = TRUE),
+    Average_Provider_Score = mean(Average_Score_Provider, na.rm = TRUE)
+  ) %>%
+  arrange(desc(Average_Provider_Score)) %>%
+  slice_head(n = 10)
+
+kable(result_table_score, format = "html", caption = "Top 10 Counties by Provider Score",
+      col.names = c("County", "Adjusted Rate of Preventable Hospitalization", "Provider Shortage Score"))
+```
+
+## Conclusions:
+
+The top ten counties were taken in terms of adjusted rates of preventable hospitalization and provider shortage scores. Notable counties that appeared in the top 10 on both lists include Shasta, Colusa, Yuba, and Sutter. These four counties may represent target areas that experience both the highest rates of preventable hospitalization and the greatest primary care provider shortages.
+
+These datasets had some noteworthy limitations. The Primary Care provider shortage dataset only included data from the year 2020, making it difficult to draw conclusions about any time-course. It would be interesting to see how the changes in primary care provider availability associate with changes in preventable hospitalizations. The Preventable hospitalizations dataset was also limited in its scope. More granular analysis of individual diagnoses by county was difficult due to low rates of hospitalization in some counties. For example, there were 0 hospitalizations due to asthma in young adults in several of the smaller counties in 2020.
+
+Preventable hospitalizations indicate areas of improvement in public health, particularly in access to care. These data show a positive association between shortage of primary care providers and preventable hospitalization rates. Greater investment in primary care, particularly in areas of shortage, can potentially improve these rates and citizens' overall health.
+
+Links to Datasets and Data Dictionaries:
+
+Primary Care Shortage Areas:
+
+-   https://data.chhs.ca.gov/dataset/primary-care-shortage-areas-in-california/resource/0ba7c904-2302-400a-ba27-b8e8e5c1ab4a
+
+Preventable Hospitalizations:
+
+-   https://data.chhs.ca.gov/dataset/rates-of-preventable-hospitalizations-for-selected-medical-conditions-by-county/resource/1f699c45-f52f-408e-a8f2-87e537aea82d?inner_span=True

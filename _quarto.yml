@@ -9,6 +9,8 @@ website:
       - href: index.qmd
         text: Home
       - about.qmd
+      - href: SK-PM566-FinalProject-Final-Report.pdf
+        text: Download the Report
       
 
 format:
